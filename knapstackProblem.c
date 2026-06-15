@@ -54,12 +54,81 @@ void exibirItens()
     while(fread(&objeto, sizeof(Item),1,arquivo)){
         if(objeto.ativo == 1){
             printf("NOME: %s\nPESO: %.2f\nVALOR: %d\n",objeto.nome, objeto.peso, objeto.valor);
+    
         }
     }
     fclose(arquivo);
 }
 
-int calcularPeso()
+void atualizarItens()
+{
+    char nomeBusca[50];
+    char escolhas[20]; //Usuario digita quais campos quer atualizar
+    Item objeto;
+
+    FILE *arquivo=fopen(MOCHILA, "rb+");
+
+    if (arquivo==NULL){
+        printf("Erro: A mochila está vazia.\n");
+        return;
+    }
+
+    printf("Digite o nome do item que deseja editar:\n");
+    fgets(nomeBusca, 50, stdin);
+    nomeBusca[strcspn(nomeBusca, "\n")]=0;
+
+    int achou=0;
+
+    while (fread(&objeto, sizeof(Item), 1, arquivo)){
+        if (strcmp(objeto.nome, nomeBusca)==0 && objeto.ativo==1){
+            achou=1;
+
+            printf("\nItem Encontrado\n");
+            printf("[1] Nome | [2] Peso | [3]Valor\n");
+            printf("Digite os números dos campos que quer alterar: ");
+            fgets(escolhas, 20, stdin);
+
+
+            if (strchr(escolhas, '1')!=NULL){
+                printf("Digite o novo nome:\n");
+                fgets(objeto.nome, 50, stdin);
+                objeto.nome[strcspn(objeto.nome, "\n")]=0;
+            }
+
+            if (strchr(escolhas, '2') != NULL) {
+                printf("Digite o novo peso:\n");
+                scanf("%f", &objeto.peso);
+                getchar();
+            }
+            
+            if (strchr(escolhas, '3') != NULL) {
+                printf("Digite o novo valor:\n");
+                scanf("%d", &objeto.valor);
+                getchar();
+            }
+
+            if (strchr(escolhas, '1') == NULL && strchr(escolhas, '2') == NULL && strchr(escolhas, '3') == NULL) {
+                printf("Nenhuma opção válida foi digitada.\n");
+                fclose(arquivo);
+                return;
+            }
+
+            
+            fseek(arquivo, -sizeof(Item), SEEK_CUR);
+            fwrite(&objeto, sizeof(Item), 1, arquivo);
+            break;
+        }
+    }
+
+    fclose(arquivo);
+
+    if (achou){
+        printf("Campo(s) atualizado(s)!\n");
+    } else {
+        printf("Aviso: Item não encontrado\n");
+    }
+}
+float calcularPeso()
 {
     Item objeto;
     float pesoTotal = 0.0;
@@ -128,11 +197,15 @@ int main()
             printf("@ LISTAR ITENS\n");
             exibirItens();
             break;
+        case 2:
+            printf("@ATUALIZAR ITEM\n");
+            atualizarItens();
+            break;
         case 3:
-            printf("@ Deltar Itens\n");
+            printf("@ DELETAR ITENS\n");
             deletarItens();
     }
 
-    // float pesoMochila = calcularPesoTotal();
-    // printf("Peso total é: %.2f kg\n", pesoMochila);
+    float pesoMochila = calcularPeso();
+    printf("Peso total é: %.2f kg\n", pesoMochila);
 }
