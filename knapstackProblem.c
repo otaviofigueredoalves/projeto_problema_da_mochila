@@ -147,6 +147,34 @@ float calcularPeso()
     return pesoTotal;
 }
 
+void deletarItens()
+{
+    Item objeto;
+    int encontrado = 0;
+    char nomeBuscado[50];
+    FILE *arquivo = fopen(MOCHILA, "r+b");
+    
+    if (arquivo == NULL)
+    {
+        printf("Erro ao abrir o arquivo\n");
+        return;
+    }
+    printf("\nDigite o nome do item:");
+    fgets(nomeBuscado, 50, stdin);
+    nomeBuscado[strcspn(nomeBuscado, "\n")] = 0;
+    while(fread(&objeto, sizeof(Item), 1, arquivo)){
+        if(strcmp(objeto.nome, nomeBuscado) == 0){
+            fseek(arquivo, -sizeof(Item), SEEK_CUR);
+            objeto.ativo = 0;
+            fwrite(&objeto, sizeof(Item), 1, arquivo);
+            encontrado = 1;
+            break;
+        }
+    }
+    fclose(arquivo);
+    printf(encontrado ? "Item apagado!\n" : "Item não encontrado\n");
+}
+
 int main()
 {
     int choose;
@@ -173,6 +201,9 @@ int main()
             printf("@ATUALIZAR ITEM\n");
             atualizarItens();
             break;
+        case 3:
+            printf("@ DELETAR ITENS\n");
+            deletarItens();
     }
 
     float pesoMochila = calcularPeso();
