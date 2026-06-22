@@ -1,211 +1,309 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-typedef struct
-{
+
+#define MAX_ITENS 100
+
+typedef struct {
     char nome[50];
-    float peso;
+    int peso;
     int valor;
     int ativo;
 } Item;
 
-const char *MOCHILA = "mochila.bin";
+int capacidade_mochila = 0;
+int mochila[MAX_ITENS];
+int total_na_mochila = 0;
 
-void cadastrarItens()
-{
-    Item objeto;
-    FILE *arquivo = fopen(MOCHILA, "ab");
-
-    if (arquivo == NULL)
-    {
-        printf("Erro ao abrir o arquivo\n");
+void cadastrarItens(Item catalogo[], int *total_catalogo) {
+    if (*total_catalogo >= MAX_ITENS) {
+        printf("Limite máximo do catálogo atingido!\n");
         return;
     }
 
-    printf("Digite o nome do item:\n");
-    fgets(objeto.nome, 50, stdin);
-    objeto.nome[strcspn(objeto.nome, "\n")] = 0;
+    Item novo;
+    printf("\n@ CADASTRAR ITEM \n");
+    printf("Digite o nome do item: ");
+    fgets(novo.nome, 50, stdin);
+    novo.nome[strcspn(novo.nome, "\n")] = 0;
 
-    printf("Digite o peso:\n");
-    scanf("%f", &objeto.peso);
+    printf("Digite o peso (kg): ");
+    scanf("%d", &novo.peso);
 
-    printf("Digite o valor:\n");
-    scanf("%d", &objeto.valor);
+    printf("Digite o valor de importância: ");
+    scanf("%d", &novo.valor);
     getchar();
 
-    objeto.ativo = 1;
+    novo.ativo = 1;
+    catalogo[*total_catalogo] = novo;
+    (*total_catalogo)++;
 
-    fwrite(&objeto, sizeof(Item), 1, arquivo);
-    fclose(arquivo);
-    printf("Item cadastrado!\n");
+    printf("Item cadastrado com sucesso!\n");
 }
 
-void exibirItens()
-{
-    Item objeto;
-    FILE *arquivo = fopen(MOCHILA, "rb");
-
-    if(arquivo == NULL){
-        printf("Nenhum item cadastrado.\n");
-        return;
-    }
-
-    printf("@ LISTA DE ITENS\n");
-    while(fread(&objeto, sizeof(Item),1,arquivo)){
-        if(objeto.ativo == 1){
-            printf("NOME: %s\nPESO: %.2f\nVALOR: %d\n",objeto.nome, objeto.peso, objeto.valor);
-    
+void exibirItens(Item catalogo[], int total_catalogo) {
+    printf("\n @ ITENS DISPONÍVEIS\n");
+    int encontrou = 0;
+    for (int i = 0; i < total_catalogo; i++) {
+        if (catalogo[i].ativo == 1) {
+            printf("[%d] %s | Peso: %d kg | Valor: %d\n", i, catalogo[i].nome, catalogo[i].peso, catalogo[i].valor);
+            encontrou = 1;
         }
     }
-    fclose(arquivo);
+    if (!encontrou) {
+        printf("Nenhum item disponível.\n");
+    }
 }
 
-void atualizarItens()
-{
-    char nomeBusca[50];
-    char escolhas[20]; //Usuario digita quais campos quer atualizar
-    Item objeto;
+int calcularPeso(Item catalogo[], int indices_mochila[], int qtd_mochila) {
+    int peso_total = 0;
+    for (int i = 0; i < qtd_mochila; i++) {
+        int indice_item = indices_mochila[i];
+        peso_total += catalogo[indice_item].peso;
+    }
+    return peso_total;
+}
 
-    FILE *arquivo=fopen(MOCHILA, "rb+");
+int calcularValor(Item catalogo[], int indices_mochila[], int qtd_mochila) {
+    int valor_total = 0;
+    for (int i = 0; i < qtd_mochila; i++) {
+        int indice_item = indices_mochila[i];
+        valor_total += catalogo[indice_item].valor;
+    }
+    return valor_total;
+}
 
-    if (arquivo==NULL){
-        printf("Erro: A mochila está vazia.\n");
+void gerarRelatorio(Item catalogo[], int indices_mochila[], int qtd_mochila, int capacidade) {
+    printf("\n @ RELATÓRIO FINAL\n");
+    if (qtd_mochila == 0) {
+        printf("A mochila está vazia.\n");
         return;
     }
 
-    printf("Digite o nome do item que deseja editar:\n");
-    fgets(nomeBusca, 50, stdin);
-    nomeBusca[strcspn(nomeBusca, "\n")]=0;
+    printf("Itens escolhidos:\n");
+    for (int i = 0; i < qtd_mochila; i++) {
+        int idx = indices_mochila[i];
+        printf("- %s\n", catalogo[idx].nome);
+    }
 
-    int achou=0;
+    int peso_total = calcularPeso(catalogo, indices_mochila, qtd_mochila);
+    int valor_total = calcularValor(catalogo, indices_mochila, qtd_mochila);
+    float porcentagem = ((float)peso_total / capacidade) * 100;
 
-    while (fread(&objeto, sizeof(Item), 1, arquivo)){
-        if (strcmp(objeto.nome, nomeBusca)==0 && objeto.ativo==1){
-            achou=1;
+    printf("\nPeso total: %d kg\n", peso_total);
+    printf("Valor total: %d\n", valor_total);
+    printf("Capacidade utilizada: %.2f%%\n", porcentagem);
+}
 
-            printf("\nItem Encontrado\n");
-            printf("[1] Nome | [2] Peso | [3]Valor\n");
-            printf("Digite os números dos campos que quer alterar: ");
-            fgets(escolhas, 20, stdin);
+void atualizarItens(Item catalogo[], int total_catalogo) {
+    int id;
+    exibirItens(catalogo, total_catalogo);
+    printf("\nDigite o número [#] do item que deseja alterar: ");
+    scanf("%d", &id);
+    getchar();
 
+    if (id >= 0 && id < total_catalogo && catalogo[id].ativo == 1) {
+        printf("Novo nome: ");
+        fgets(catalogo[id].nome, 50, stdin);
+        catalogo[id].nome[strcspn(catalogo[id].nome, "\n")] = 0;
 
-            if (strchr(escolhas, '1')!=NULL){
-                printf("Digite o novo nome:\n");
-                fgets(objeto.nome, 50, stdin);
-                objeto.nome[strcspn(objeto.nome, "\n")]=0;
-            }
+        printf("Novo peso: ");
+        scanf("%d", &catalogo[id].peso);
 
-            if (strchr(escolhas, '2') != NULL) {
-                printf("Digite o novo peso:\n");
-                scanf("%f", &objeto.peso);
-                getchar();
-            }
-            
-            if (strchr(escolhas, '3') != NULL) {
-                printf("Digite o novo valor:\n");
-                scanf("%d", &objeto.valor);
-                getchar();
-            }
+        printf("Novo valor: ");
+        scanf("%d", &catalogo[id].valor);
+        getchar();
 
-            if (strchr(escolhas, '1') == NULL && strchr(escolhas, '2') == NULL && strchr(escolhas, '3') == NULL) {
-                printf("Nenhuma opção válida foi digitada.\n");
-                fclose(arquivo);
+        printf("Item atualizado!\n");
+    } else {
+        printf("Item inválido!\n");
+    }
+}
+void selecionarItemMochila(Item catalogo[], int total_catalogo) {
+    if (capacidade_mochila <= 0) {
+        printf("Defina a capacidade da mochila primeiro!\n");
+        return;
+    }
+
+    int id;
+    exibirItens(catalogo, total_catalogo);
+    printf("\nDigite o número [#] do item para adicionar à mochila: ");
+    scanf("%d", &id);
+    getchar();
+
+    if (id >= 0 && id < total_catalogo && catalogo[id].ativo == 1) {
+        for (int i = 0; i < total_na_mochila; i++) {
+            if (mochila[i] == id) {
+                printf("O item já está na mochila!\n");
                 return;
             }
-
-            
-            fseek(arquivo, -sizeof(Item), SEEK_CUR);
-            fwrite(&objeto, sizeof(Item), 1, arquivo);
-            break;
         }
-    }
 
-    fclose(arquivo);
-
-    if (achou){
-        printf("Campo(s) atualizado(s)!\n");
+        int peso_atual = calcularPeso(catalogo, mochila, total_na_mochila);
+        if (peso_atual + catalogo[id].peso > capacidade_mochila) {
+            printf("Capacidade da mochila excedida!\n");
+        } else {
+            mochila[total_na_mochila] = id;
+            total_na_mochila++;
+            printf("Item adicionado com sucesso!\n");
+        }
     } else {
-        printf("Aviso: Item não encontrado\n");
+        printf("Item inválido!\n");
     }
 }
-float calcularPeso()
-{
-    Item objeto;
-    float pesoTotal = 0.0;
-    FILE *arquivo = fopen(MOCHILA, "rb");
-
-    if(arquivo == NULL){
-        return 0.0;
-    }
-
-    while(fread(&objeto, sizeof(Item), 1, arquivo)){
-        if(objeto.ativo == 1){
-            pesoTotal += objeto.peso;
-        }
-    }
-    fclose(arquivo);
-    return pesoTotal;
-}
-
-void deletarItens()
-{
-    Item objeto;
-    int encontrado = 0;
-    char nomeBuscado[50];
-    FILE *arquivo = fopen(MOCHILA, "r+b");
-    
-    if (arquivo == NULL)
-    {
-        printf("Erro ao abrir o arquivo\n");
+void removerDaMochila(Item catalogo[]) {
+    if (total_na_mochila == 0) {
+        printf("A mochila já está vazia.\n");
         return;
     }
-    printf("\nDigite o nome do item:");
-    fgets(nomeBuscado, 50, stdin);
-    nomeBuscado[strcspn(nomeBuscado, "\n")] = 0;
-    while(fread(&objeto, sizeof(Item), 1, arquivo)){
-        if(strcmp(objeto.nome, nomeBuscado) == 0){
-            fseek(arquivo, -sizeof(Item), SEEK_CUR);
-            objeto.ativo = 0;
-            fwrite(&objeto, sizeof(Item), 1, arquivo);
-            encontrado = 1;
+
+    int id;
+    printf("\n @ ITENS NA MOCHILA\n");
+    for (int i = 0; i < total_na_mochila; i++) {
+        int idx = mochila[i];
+        printf("[%d] %s\n", idx, catalogo[idx].nome);
+    }
+
+    printf("\nDigite o número [#] do item que deseja remover: ");
+    scanf("%d", &id);
+    getchar();
+
+    int encontrou = 0;
+    for (int i = 0; i < total_na_mochila; i++) {
+        if (mochila[i] == id) {
+            encontrou = 1;
+            for (int j = i; j < total_na_mochila - 1; j++) {
+                mochila[j] = mochila[j + 1];
+            }
+            total_na_mochila--;
+            printf("Item removido da mochila!\n");
             break;
         }
     }
-    fclose(arquivo);
-    printf(encontrado ? "Item apagado!\n" : "Item não encontrado\n");
+    if (!encontrou) {
+        printf("Item não está na mochila.\n");
+    }
 }
 
-int main()
-{
-    int choose;
+void trocar(int *a, int *b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
 
-    printf("@ ESCOLHA UMA AÇÃO\n");
-    printf("[0] -> CRIAR\n");
-    printf("[1] -> LISTAR\n");
-    printf("[2] -> ATUALIZAR\n");
-    printf("[3] -> DELETE\n");
-    scanf("%d", &choose);
-    getchar();
+int particionar(Item catalogo[], int indices[], int baixo, int alto) {
+    int pivo = catalogo[indices[alto]].valor;
+    int i = (baixo - 1);
 
-    switch (choose)
-    {
-        case 0:
-            printf("@ CADASTRAR ESCOLHIDO\n");
-            cadastrarItens();
-            break;
-        case 1:
-            printf("@ LISTAR ITENS\n");
-            exibirItens();
-            break;
-        case 2:
-            printf("@ATUALIZAR ITEM\n");
-            atualizarItens();
-            break;
-        case 3:
-            printf("@ DELETAR ITENS\n");
-            deletarItens();
+    for (int j = baixo; j <= alto - 1; j++) {
+        if (catalogo[indices[j]].valor >= pivo) {
+            i++;
+            trocar(&indices[i], &indices[j]);
+        }
+    }
+    trocar(&indices[i + 1], &indices[alto]);
+    return (i + 1);
+}
+
+void quickSort(Item catalogo[], int indices[], int baixo, int alto) {
+    if (baixo < alto) {
+        int pi = particionar(catalogo, indices, baixo, alto);
+        quickSort(catalogo, indices, baixo, pi - 1);
+        quickSort(catalogo, indices, pi + 1, alto);
+    }
+}
+
+void estrategiaAutomatica(Item catalogo[], int total_catalogo) {
+    if (capacidade_mochila <= 0) {
+        printf("Defina a capacidade da mochila primeiro!\n");
+        return;
     }
 
-    float pesoMochila = calcularPeso();
-    printf("Peso total é: %.2f kg\n", pesoMochila);
+    total_na_mochila = 0; // Limpa a mochila atual
+
+    // Criar um array temporário de índices dos itens ativos
+    int indices_ordenados[MAX_ITENS];
+    int cont = 0;
+    for (int i = 0; i < total_catalogo; i++) {
+        if (catalogo[i].ativo == 1) {
+            indices_ordenados[cont++] = i;
+        }
+    }
+    if (cont > 0) {
+        quickSort(catalogo, indices_ordenados, 0, cont - 1);
+    }
+
+    int peso_atual = 0;
+    for (int i = 0; i < cont; i++) {
+        int id = indices_ordenados[i];
+        if (peso_atual + catalogo[id].peso <= capacidade_mochila) {
+            mochila[total_na_mochila++] = id;
+            peso_atual += catalogo[id].peso;
+        }
+    }
+    printf("Mochila preenchida automaticamente priorizando itens de maior valor!\n");
+}
+int main() {
+    Item catalogo[MAX_ITENS];
+    int total_catalogo = 0;
+    int escolha;
+
+    do {
+        printf("\n========================================\n");
+        printf("  SISTEMA DE PLANEJAMENTO DE MOCHILA\n");
+        printf("========================================\n");
+        printf("[1] Cadastrar Item no Catálogo\n");
+        printf("[2] Exibir Catálogo\n");
+        printf("[3] Editar Item do Catálogo (Nível 2)\n");
+        printf("[4] Definir Capacidade da Mochila\n");
+        printf("[5] Adicionar Item na Mochila\n");
+        printf("[6] Remover Item da Mochila (Nível 3)\n");
+        printf("[7] Seleção Automática de Itens (Nível 4)\n");
+        printf("[8] Gerar Relatório Final\n");
+        printf("[0] Sair\n");
+        printf("Escolha uma opção: ");
+        
+        if (scanf("%d", &escolha) != 1) {
+            getchar(); // Previne loop infinito se o usuário digitar letras
+            continue;
+        }
+        getchar();
+
+        switch (escolha) {
+            case 1:
+                cadastrarItens(catalogo, &total_catalogo);
+                break;
+            case 2:
+                exibirItens(catalogo, total_catalogo);
+                break;
+            case 3:
+                atualizarItens(catalogo, total_catalogo);
+                break;
+            case 4:
+                printf("\nDigite a capacidade máxima da mochila (kg): ");
+                scanf("%d", &capacidade_mochila);
+                getchar();
+                printf("Capacidade definida para %d kg!\n", capacidade_mochila);
+                total_na_mochila = 0; 
+                break;
+            case 5:
+                selecionarItemMochila(catalogo, total_catalogo);
+                break;
+            case 6:
+                removerDaMochila(catalogo);
+                break;
+            case 7:
+                estrategiaAutomatica(catalogo, total_catalogo);
+                break;
+            case 8:
+                gerarRelatorio(catalogo, mochila, total_na_mochila, capacidade_mochila);
+                break;
+            case 0:
+                printf("Encerrando o programa...\n");
+                break;
+            default:
+                printf("Opção inválida!\n");
+        }
+    } while (escolha != 0);
+
+    return 0;
 }
